@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Weather Next iPhone</title>
+<style>
+  :root{color-scheme:dark;--bg:#0b1020;--text:#eef3ff;--muted:#a9b3d0;--accent:#69b7ff}
+  *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;background:radial-gradient(circle at top,#182149 0,var(--bg) 45%);color:var(--text);min-height:100vh}
+  .wrap{max-width:900px;margin:0 auto;padding:0 14px 40px}.card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:14px;box-shadow:0 12px 30px rgba(0,0,0,.25);margin:12px 0}
+  header{padding:18px 16px 2px} input,select,button{width:100%;border:1px solid rgba(255,255,255,.18);background:#0e1530;color:var(--text);border-radius:14px;padding:13px 14px;font-size:16px;outline:none} input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(105,183,255,.18)}
+  button{background:linear-gradient(135deg,#2f7dff,#19c6ff);border:0;font-weight:700} button.secondary{background:#202a4d;border:1px solid rgba(255,255,255,.14);font-weight:600}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.keyrow{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+  #map{height:290px;border-radius:18px;border:1px solid rgba(255,255,255,.14);margin:12px 0}.muted{color:var(--muted)}.small{font-size:13px}.pill{display:inline-block;border-radius:999px;padding:4px 10px;background:rgba(105,183,255,.16);color:#bfe0ff;margin:2px 4px 2px 0;font-size:13px}
+  .hero{display:flex;align-items:center;justify-content:space-between;gap:12px}.big{font-size:54px;font-weight:800;line-height:1}.cond{font-size:20px;font-weight:700}.err{white-space:pre-wrap;color:#ffd3d3;background:rgba(255,90,90,.12);border:1px solid rgba(255,90,90,.25);border-radius:14px;padding:12px;display:none}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.day{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:12px}.day h3{margin:0 0 6px;font-size:15px}.temp{font-size:21px;font-weight:800}.low{color:var(--muted);font-weight:700}.icon{width:32px;height:32px;vertical-align:middle}
+  details{margin-top:8px} summary{cursor:pointer;color:var(--accent)}
+  .quick{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 2px;-webkit-overflow-scrolling:touch}.q{min-width:126px;flex:0 0 auto;background:rgba(105,183,255,.10);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px;text-align:center}.q .d{font-weight:800;font-size:13px;margin-bottom:4px}.q .t{font-size:18px;font-weight:800}.q .c{font-size:12px;color:var(--muted);min-height:28px} pre{overflow:auto;background:#070b18;border-radius:14px;padding:12px;border:1px solid rgba(255,255,255,.1);font-size:12px}.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0e1530;border:1px solid rgba(255,255,255,.15);padding:11px 14px;border-radius:999px;display:none;max-width:92vw;box-shadow:0 12px 30px rgba(0,0,0,.35)}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1 style="margin:0">Weather Next</h1><div class="muted small">Google Maps Platform Weather API</div></div></header>
+<main class="wrap">
+  <section class="card">
+    <div class="keyrow">
+      <label class="small muted">API key<br><input id="apiKey" type="password" autocomplete="off" placeholder="Paste Google API key" /></label>
+      <button id="saveKey" style="width:auto;padding:13px 16px">Save</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="small muted">Latitude<br><input id="lat" inputmode="decimal" placeholder="45.7489" /></label>
+      <label class="small muted">Longitude<br><input id="lon" inputmode="decimal" placeholder="21.2087" /></label>
+    </div>
+    <div class="row3" style="margin-top:10px">
+      <button class="secondary" id="useLoc">My location</button>
+      <select id="units" aria-label="Units"><option value="METRIC">°C</option><option value="IMPERIAL">°F</option></select>
+      <select id="days" aria-label="Days"><option value="3">3 days</option><option value="5" selected>5 days</option><option value="7">7 days</option><option value="10">10 days</option></select>
+    </div>
+    <button id="load" style="margin-top:10px">Load forecast</button>
+    <div id="status" class="small" style="margin-top:10px"></div>
+    <div id="quick" class="quick"></div>
+    <div class="small muted" style="margin-top:10px">Tap the map to move the point. Geolocation may require HTTPS hosting.</div>
+  </section>
+
+  <div id="err" class="err"></div>
+  <div id="map"></div>
+
+  <section class="card" id="currentCard" hidden>
+    <div class="hero"><div><div class="muted small">Current conditions</div><div class="cond" id="curCond">—</div><div id="curPills"></div></div><div><img id="curIcon" class="icon" hidden alt=""><div class="big" id="curTemp">—</div></div></div>
+    <div class="small muted" id="curMeta"></div>
+  </section>
+
+  <section class="card" id="dailyCard" hidden>
+    <h2 style="margin:0 0 10px;font-size:18px">Daily forecast</h2>
+    <div class="grid" id="days"></div>
+  </section>
+
+  <details class="card"><summary>Raw API responses</summary><pre id="raw"></pre></details>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+const $=id=>document.getElementById(id);
+const state={key:localStorage.getItem('gmp_weather_key')||'',lat:45.7489,lon:21.2087,map:null,marker:null,units:'METRIC'};
+$('apiKey').value=state.key;
+function toast(msg){const t=$('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._x);t._x=setTimeout(()=>t.style.display='none',2600)}
+function err(msg){const e=$('err'); if(!msg){e.style.display='none';e.textContent='';return} e.style.display='block';e.textContent=msg}
+function qs(o){const u=new URLSearchParams(); for(const [k,v] of Object.entries(o)) if(v!==undefined&&v!==null&&v!=='') u.set(k,String(v)); return u.toString()}
+async function j(url,label){ const r=await fetch(url); const data=await r.json().catch(()=>({})); if(!r.ok) throw new Error(`${label}\n${r.status} ${r.statusText}\n${JSON.stringify(data,null,2)}`); return data }
+function txt(x){ if(x==null) return ''; if(typeof x==='string') return x; return x.text||x.description||x.type||'' }
+function cond(c){ return txt(c?.weatherCondition?.description) || txt(c?.weatherCondition) || c?.weatherCondition?.type || '—' }
+function deg(x){ const c=x?.degrees ?? x?.value; if(c==null) return '—'; const v=state.units==='IMPERIAL' ? c*9/5+32 : c; return `${Math.round(v)}°` }
+function speed(x){ const v=x?.value ?? x?.speed?.value; return v==null?'':`${Math.round(v)} ${x?.unit||x?.speed?.unit||''}` }
+function dayLabel(d){ const y=d?.displayDate?.year,m=d?.displayDate?.month,dd=d?.displayDate?.day; if(y&&m&&dd) return new Date(Date.UTC(y,m-1,dd)).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}); const t=d?.interval?.startTime; return t?new Date(t).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}):'' }
+function icon(c){ const b=c?.weatherCondition?.iconBaseUri; return b?b+'.png':'' }
+function loadMap(){ if(state.map || !state.key) return; const s=document.createElement('script'); s.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(state.key)}&loading=async&callback=initMap`; s.onerror=()=>err('Maps JavaScript API failed to load. Enable Maps JavaScript API for this key.'); document.head.appendChild(s) }
+window.initMap=function(){ err(''); state.map=new google.maps.Map($('map'),{center:{lat:state.lat,lng:state.lon},zoom:10,gestureHandling:'greedy',mapTypeControl:false,streetViewControl:false}); state.map.addListener('click',e=>{setPoint(e.latLng.lat(),e.latLng.lng()); loadWeather()}); setPoint(state.lat,state.lon) }
+function setPoint(lat,lon){ state.lat=+lat; state.lon=+lon; $('lat').value=state.lat.toFixed(5); $('lon').value=state.lon.toFixed(5); if(state.map){ const p={lat:state.lat,lng:state.lon}; state.map.setCenter(p); if(!state.marker) state.marker=new google.maps.Marker({map:state.map,position:p,draggable:true}); else state.marker.setPosition(p); google.maps.event.clearListeners(state.marker,'dragend'); state.marker.addListener('dragend',()=>{const q=state.marker.getPosition(); setPoint(q.lat(),q.lng()); loadWeather()}) } }
+async function loadWeather(){ err(''); const key=state.key; if(!key) return toast('Save an API key first'); const lat=+$('lat').value, lon=+$('lon').value, days=Math.max(1,Math.min(10,+$('days').value||5)); if(!isFinite(lat)||!isFinite(lon)) return err('Enter valid latitude/longitude.'); state.units=$('units').value; setPoint(lat,lon); toast('Loading…'); const base='https://weather.googleapis.com/v1'; const common={key, 'location.latitude':lat, 'location.longitude':lon}; const curQ=qs(state.units==='IMPERIAL'?{...common,unitsSystem:'IMPERIAL'}:common); const fcQ=qs({...common,days,pageSize:10}); try{ const cur=await j(`${base}/currentConditions:lookup?${curQ}`,'CURRENT'); render(cur,{forecastDays:[]}); $('raw').textContent='CURRENT\n'+JSON.stringify(cur,null,2); try{ const fc=await j(`${base}/forecast/days:lookup?${fcQ}`,'FORECAST'); render(cur,fc); $('raw').textContent='CURRENT\n'+JSON.stringify(cur,null,2)+'\n\nFORECAST\n'+JSON.stringify(fc,null,2); const n=(fc.forecastDays||[]).length; $('status').textContent=n?`Forecast OK: ${n} day(s) loaded. Scroll to “Daily forecast”.`:'Forecast returned 0 days.'; if(!n) $('days').innerHTML='<div class="muted">Forecast response had no forecastDays.</div>'; } catch(fe){ $('status').textContent='Forecast failed; current conditions shown.'; $('days').innerHTML='<div class="muted">Forecast failed; current conditions shown. '+String(fe.message||fe).slice(0,180)+'</div>' } } catch(e){ err(String(e.message||e)) } finally{ toast('Done') } }
+function render(cur,fc){ const c=cur.currentConditions||cur; $('currentCard').hidden=false; $('dailyCard').hidden=false; $('curCond').textContent=cond(c); $('curTemp').textContent=deg(c.temperature); $('curMeta').textContent=`${cur.timeZone?.id||''} • ${cur.updateTime||''}`; const ci=icon(c); if(ci){$('curIcon').src=ci;$('curIcon').hidden=false;$('curIcon').alt=cond(c)} else $('curIcon').hidden=true; const pills=[]; if(c.feelsLikeTemperature!=null)pills.push(`feels ${deg(c.feelsLikeTemperature)}`); if(c.relativeHumidity!=null)pills.push(`humidity ${Math.round(c.relativeHumidity)}%`); if(c.wind?.speed)pills.push(`wind ${speed(c.wind.speed)} ${c.wind.direction?.cardinal||''}`); if(c.uvIndex!=null)pills.push(`UV ${c.uvIndex}`); $('curPills').innerHTML=pills.map(p=>`<span class="pill">${p}</span>`).join(''); const days=Array.isArray(fc?.forecastDays)?fc.forecastDays:[]; const chip=d=>{const day=d.daytimeForecast||{}, night=d.nighttimeForecast||{}; const ic=icon(day)||icon(night); const q=d.precipitation?.probability?.percent; return `<div class="q"><div class="d">${dayLabel(d)}</div><img class="icon" src="${ic}" alt="" onerror="this.style.display='none'"><div class="t">${deg(d.maxTemperature)}<span class="low"> / ${deg(d.minTemperature)}</span></div><div class="c">${cond(day)||cond(night)}${q!=null?`<br>precip ${q}%`:''}</div></div>`}; $('quick').innerHTML=days.map(chip).join(''); $('days').innerHTML=days.map(d=>{ const day=d.daytimeForecast||{}, night=d.nighttimeForecast||{}; const ic=icon(day)||icon(night); const q=day.precipitation?.probability?.percent; return `<div class="day"><h3>${dayLabel(d)}</h3><div><img class="icon" src="${ic}" alt="" onerror="this.style.display='none'"> <span class="temp">${deg(d.maxTemperature)}</span> <span class="low">/ ${deg(d.minTemperature)}</span></div><div class="small">${cond(day)||cond(night)}</div><div class="small muted">${q!=null?`precip ${q}%`:''} ${day.wind?.speed?`wind ${speed(day.wind.speed)}`:''}</div></div>` }).join('') || '<div class="muted">No forecastDays returned.</div>' }
+$('saveKey').onclick=()=>{state.key=$('apiKey').value.trim(); localStorage.setItem('gmp_weather_key',state.key); err(''); if(state.key){loadMap(); toast('Key saved on this device')} };
+$('load').onclick=loadWeather; $('useLoc').onclick=()=>{ if(!navigator.geolocation) return toast('Geolocation unavailable'); navigator.geolocation.getCurrentPosition(p=>{setPoint(p.coords.latitude,p.coords.longitude); loadWeather()},e=>toast('Location denied: '+e.message),{enableHighAccuracy:true,timeout:8000})};
+if(state.key) loadMap();
+</script>
+</body>
+</html>
